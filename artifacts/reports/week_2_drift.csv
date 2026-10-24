@@ -1,0 +1,9 @@
+feature,psi,status
+Tenure_Months,0.004360959086459535,low
+Contract_Type,0.0014479504272333146,low
+Internet_Service,0.0019950681081959943,low
+Monthly_Charges,0.017655488342874694,low
+Total_Charges,0.021831556024253775,low
+Support_Calls_Last_Month,0.003577711372126655,low
+Avg_Data_Usage_GB,0.021806917269881147,low
+Late_Payments,0.0008213630185485765,low

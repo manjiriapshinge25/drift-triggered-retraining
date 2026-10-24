@@ -1,0 +1,5 @@
+policy,weeks,failed_runs,retraining_attempts,promotions,mean_weekly_f1,worst_weekly_f1,retraining_cost_units,promotion_cost_units,total_cost_units
+drift_high,8,0,4,4,0.4008311307921343,0.2714285714285714,40,8,48
+drift_low,8,0,5,5,0.4016653910813445,0.2714285714285714,50,10,60
+never,8,0,0,0,0.3830874550656166,0.2714285714285714,0,0,0
+weekly,8,0,8,5,0.40064900513774515,0.2714285714285714,80,10,90

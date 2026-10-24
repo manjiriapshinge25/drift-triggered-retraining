@@ -1,0 +1,10 @@
+START HERE — TASK-BY-TASK NOTEBOOK
+
+Open 00_PROJECT_NOTEBOOK_TASK_BY_TASK.ipynb and run every cell from top to bottom.
+It is organized explicitly as Task 1 through Task 7, with numbered subparts, code, checks, and evidence outputs.
+
+Install dependencies from requirements.txt first: pip install -r requirements.txt
+Start Jupyter from the extracted project folder: jupyter notebook
+
+Evidence is saved under artifacts/ and artifacts/reports/.
+Local endpoint cold/warm timings are local model-load/cache measurements, not cloud-provider cold starts. A real cloud deployment must be deployed and measured separately if required by your professor.

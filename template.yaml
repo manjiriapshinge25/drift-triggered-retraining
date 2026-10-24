@@ -1,0 +1,30 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Drift-triggered churn prediction Lambda endpoint (deployment scaffold)
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 1024
+Resources:
+  ChurnInferenceFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: endpoint.lambda_function.lambda_handler
+      Runtime: python3.12
+      Architectures: [x86_64]
+      Events:
+        PredictApi:
+          Type: HttpApi
+          Properties:
+            Path: /predict
+            Method: POST
+        HealthApi:
+          Type: HttpApi
+          Properties:
+            Path: /health
+            Method: GET
+Outputs:
+  ApiUrl:
+    Description: API Gateway HTTP API endpoint
+    Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com"

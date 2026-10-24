@@ -1,0 +1,17 @@
+{
+  "handler": "endpoint_predict (same prediction logic throughout)",
+  "production_version_after_workflow": "v5",
+  "registered_versions": [
+    "v1",
+    "v2",
+    "v3",
+    "v4",
+    "v5"
+  ],
+  "endpoint_response_version": "v5",
+  "prediction": 0,
+  "churn_probability": 0.03333333333333333,
+  "baseline_registered": true,
+  "promoted_version_exists": true,
+  "endpoint_resolves_current_production": true
+}

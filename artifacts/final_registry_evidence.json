@@ -1,0 +1,167 @@
+{
+  "production_version": "v5",
+  "models": [
+    {
+      "version": "v1",
+      "model_path": "artifacts\\models\\v1.joblib",
+      "sha256": "485d37fedd6c8e0a49cab3b818fbfa0f72706121c86dcfc640991582815c739c",
+      "metrics": {
+        "accuracy": 0.7933333333333333,
+        "precision": 0.5,
+        "recall": 0.14516129032258066,
+        "f1": 0.225,
+        "roc_auc": 0.6953103822174032
+      },
+      "source_weeks": [
+        "reference"
+      ],
+      "created_at": "2026-10-24T16:28:54.554881+00:00",
+      "status": "archived",
+      "seed": 42,
+      "features": [
+        "Tenure_Months",
+        "Contract_Type",
+        "Internet_Service",
+        "Monthly_Charges",
+        "Total_Charges",
+        "Support_Calls_Last_Month",
+        "Avg_Data_Usage_GB",
+        "Late_Payments"
+      ]
+    },
+    {
+      "version": "v2",
+      "model_path": "artifacts\\models\\v2.joblib",
+      "sha256": "26ed6390158679d856723d1ba71ae16d1fbe4e5025770bc9f70070c9acfc1c29",
+      "metrics": {
+        "accuracy": 0.795,
+        "precision": 0.5411764705882353,
+        "recall": 0.2169811320754717,
+        "f1": 0.30976430976430974,
+        "roc_auc": 0.7461060961593716
+      },
+      "source_weeks": [
+        "reference",
+        "week_1",
+        "week_2",
+        "week_3",
+        "week_4"
+      ],
+      "created_at": "2026-10-24T16:28:55.419117+00:00",
+      "status": "archived",
+      "seed": 42,
+      "features": [
+        "Tenure_Months",
+        "Contract_Type",
+        "Internet_Service",
+        "Monthly_Charges",
+        "Total_Charges",
+        "Support_Calls_Last_Month",
+        "Avg_Data_Usage_GB",
+        "Late_Payments"
+      ]
+    },
+    {
+      "version": "v3",
+      "model_path": "artifacts\\models\\v3.joblib",
+      "sha256": "76f36cfecea31ef5ddac090ff9a637f9c10e88de15e9b7260c5e9240ec6a2681",
+      "metrics": {
+        "accuracy": 0.8009090909090909,
+        "precision": 0.6235294117647059,
+        "recall": 0.22083333333333333,
+        "f1": 0.3261538461538461,
+        "roc_auc": 0.7485925387596899
+      },
+      "source_weeks": [
+        "reference",
+        "week_1",
+        "week_2",
+        "week_3",
+        "week_4",
+        "week_5"
+      ],
+      "created_at": "2026-10-24T16:28:56.063497+00:00",
+      "status": "archived",
+      "seed": 42,
+      "features": [
+        "Tenure_Months",
+        "Contract_Type",
+        "Internet_Service",
+        "Monthly_Charges",
+        "Total_Charges",
+        "Support_Calls_Last_Month",
+        "Avg_Data_Usage_GB",
+        "Late_Payments"
+      ]
+    },
+    {
+      "version": "v4",
+      "model_path": "artifacts\\models\\v4.joblib",
+      "sha256": "d6c7afcaca1565629a61272ead6643dba1bd99ec4d7b8df1fe2541beb46d0ef4",
+      "metrics": {
+        "accuracy": 0.765,
+        "precision": 0.5319148936170213,
+        "recall": 0.25773195876288657,
+        "f1": 0.3472222222222222,
+        "roc_auc": 0.7479065775993406
+      },
+      "source_weeks": [
+        "reference",
+        "week_1",
+        "week_2",
+        "week_3",
+        "week_4",
+        "week_5",
+        "week_6"
+      ],
+      "created_at": "2026-10-24T16:28:56.753251+00:00",
+      "status": "archived",
+      "seed": 42,
+      "features": [
+        "Tenure_Months",
+        "Contract_Type",
+        "Internet_Service",
+        "Monthly_Charges",
+        "Total_Charges",
+        "Support_Calls_Last_Month",
+        "Avg_Data_Usage_GB",
+        "Late_Payments"
+      ]
+    },
+    {
+      "version": "v5",
+      "model_path": "artifacts\\models\\v5.joblib",
+      "sha256": "242affe7275ad6ea6b9e9b47dc687b1fd7b04d4e191ecad307c36b7290011ef8",
+      "metrics": {
+        "accuracy": 0.7838461538461539,
+        "precision": 0.6616161616161617,
+        "recall": 0.37971014492753624,
+        "f1": 0.48250460405156537,
+        "roc_auc": 0.7905607405721222
+      },
+      "source_weeks": [
+        "reference",
+        "week_1",
+        "week_2",
+        "week_3",
+        "week_4",
+        "week_5",
+        "week_6",
+        "week_7"
+      ],
+      "created_at": "2026-10-24T16:28:57.485162+00:00",
+      "status": "production",
+      "seed": 42,
+      "features": [
+        "Tenure_Months",
+        "Contract_Type",
+        "Internet_Service",
+        "Monthly_Charges",
+        "Total_Charges",
+        "Support_Calls_Last_Month",
+        "Avg_Data_Usage_GB",
+        "Late_Payments"
+      ]
+    }
+  ]
+}

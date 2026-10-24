@@ -1,0 +1,15 @@
+{
+  "attempts": 3,
+  "retries": 2,
+  "log": [
+    {
+      "attempt": 1,
+      "error": "TimeoutError: simulated temporary ingestion timeout"
+    },
+    {
+      "attempt": 2,
+      "error": "TimeoutError: simulated temporary ingestion timeout"
+    }
+  ],
+  "result": "ingestion succeeded"
+}

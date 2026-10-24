@@ -1,0 +1,163 @@
+[
+  {
+    "file": "churn_reference_train.csv",
+    "rows": 3000,
+    "columns": 10,
+    "column_names": [
+      "Customer_ID",
+      "Tenure_Months",
+      "Contract_Type",
+      "Internet_Service",
+      "Monthly_Charges",
+      "Total_Charges",
+      "Support_Calls_Last_Month",
+      "Avg_Data_Usage_GB",
+      "Late_Payments",
+      "Churn"
+    ]
+  },
+  {
+    "file": "churn_week_1.csv",
+    "rows": 500,
+    "columns": 11,
+    "column_names": [
+      "Customer_ID",
+      "Week",
+      "Tenure_Months",
+      "Contract_Type",
+      "Internet_Service",
+      "Monthly_Charges",
+      "Total_Charges",
+      "Support_Calls_Last_Month",
+      "Avg_Data_Usage_GB",
+      "Late_Payments",
+      "Churn"
+    ]
+  },
+  {
+    "file": "churn_week_2.csv",
+    "rows": 500,
+    "columns": 11,
+    "column_names": [
+      "Customer_ID",
+      "Week",
+      "Tenure_Months",
+      "Contract_Type",
+      "Internet_Service",
+      "Monthly_Charges",
+      "Total_Charges",
+      "Support_Calls_Last_Month",
+      "Avg_Data_Usage_GB",
+      "Late_Payments",
+      "Churn"
+    ]
+  },
+  {
+    "file": "churn_week_3.csv",
+    "rows": 500,
+    "columns": 11,
+    "column_names": [
+      "Customer_ID",
+      "Week",
+      "Tenure_Months",
+      "Contract_Type",
+      "Internet_Service",
+      "Monthly_Charges",
+      "Total_Charges",
+      "Support_Calls_Last_Month",
+      "Avg_Data_Usage_GB",
+      "Late_Payments",
+      "Churn"
+    ]
+  },
+  {
+    "file": "churn_week_4.csv",
+    "rows": 500,
+    "columns": 11,
+    "column_names": [
+      "Customer_ID",
+      "Week",
+      "Tenure_Months",
+      "Contract_Type",
+      "Internet_Service",
+      "Monthly_Charges",
+      "Total_Charges",
+      "Support_Calls_Last_Month",
+      "Avg_Data_Usage_GB",
+      "Late_Payments",
+      "Churn"
+    ]
+  },
+  {
+    "file": "churn_week_5.csv",
+    "rows": 500,
+    "columns": 11,
+    "column_names": [
+      "Customer_ID",
+      "Week",
+      "Tenure_Months",
+      "Contract_Type",
+      "Internet_Service",
+      "Monthly_Charges",
+      "Total_Charges",
+      "Support_Calls_Last_Month",
+      "Avg_Data_Usage_GB",
+      "Late_Payments",
+      "Churn"
+    ]
+  },
+  {
+    "file": "churn_week_6.csv",
+    "rows": 500,
+    "columns": 11,
+    "column_names": [
+      "Customer_ID",
+      "Week",
+      "Tenure_Months",
+      "Contract_Type",
+      "Internet_Service",
+      "Monthly_Charges",
+      "Total_Charges",
+      "Support_Calls_Last_Month",
+      "Avg_Data_Usage_GB",
+      "Late_Payments",
+      "Churn"
+    ]
+  },
+  {
+    "file": "churn_week_7.csv",
+    "rows": 500,
+    "columns": 11,
+    "column_names": [
+      "Customer_ID",
+      "Week",
+      "Tenure_Months",
+      "Contract_Type",
+      "Internet_Service",
+      "Monthly_Charges",
+      "Total_Charges",
+      "Support_Calls_Last_Month",
+      "Avg_Data_Usage_GB",
+      "Late_Payments",
+      "Churn"
+    ]
+  },
+  {
+    "file": "churn_week_8.csv",
+    "rows": 500,
+    "columns": 11,
+    "column_names": [
+      "Customer_ID",
+      "Week",
+      "Tenure_Months",
+      "Contract_Type",
+      "Internet_Service",
+      "Monthly_Charges",
+      "Total_Charges",
+      "Support_Calls_Last_Month",
+      "Avg_Data_Usage_GB",
+      "Late_Payments",
+      "Churn"
+    ]
+  }
+]

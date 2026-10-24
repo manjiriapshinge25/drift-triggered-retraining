@@ -1,0 +1,17 @@
+{
+  "random_state": 42,
+  "validation_size": 0.2,
+  "model": "RandomForestClassifier",
+  "n_estimators": 60,
+  "reference_file": "churn_reference_train.csv",
+  "features": [
+    "Tenure_Months",
+    "Contract_Type",
+    "Internet_Service",
+    "Monthly_Charges",
+    "Total_Charges",
+    "Support_Calls_Last_Month",
+    "Avg_Data_Usage_GB",
+    "Late_Payments"
+  ]
+}
