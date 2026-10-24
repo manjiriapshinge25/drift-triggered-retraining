@@ -8,6 +8,16 @@ from src.core import load_production_model, prepare_xy, DATA
 
 app=FastAPI(title="Drift-Triggered Churn Endpoint",version="1.0")
 
+@app.get("/")
+def home():
+    return {
+        "project": "Drift-Triggered Churn Prediction",
+        "status": "API is running",
+        "model_endpoint": "/predict",
+        "health_check": "/health",
+        "api_documentation": "/docs"
+    }
+
 class Customer(BaseModel):
     features: dict
 
