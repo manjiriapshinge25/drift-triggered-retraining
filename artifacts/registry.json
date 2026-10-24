@@ -130,7 +130,7 @@
     },
     {
       "version": "v5",
-      "model_path": "artifacts\\models\\v5.joblib",
+      "model_path": "artifacts/models/v5.joblib",
       "sha256": "242affe7275ad6ea6b9e9b47dc687b1fd7b04d4e191ecad307c36b7290011ef8",
       "metrics": {
         "accuracy": 0.7838461538461539,
