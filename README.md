@@ -7,7 +7,7 @@
 [![Deployment](https://img.shields.io/badge/Deployment-Render-purple.svg)](https://render.com/)
 [![Project](https://img.shields.io/badge/Project-MLOps-orange.svg)](https://github.com/manjiriapshinge25/drift-triggered-retraining)
 
-**🌐 Live Demo:** [DriftGuard — MLOps Control Center](https://drift-triggered-retraining.onrender.com/docs)
+**🌐 Live Demo:** [DriftGuard — MLOps Control Center](https://drift-triggered-retraining.onrender.com/)
 
 ---
 
