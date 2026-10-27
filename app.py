@@ -1,361 +1,433 @@
-import json
+
 import sys
+import json
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import pandas as pd
-import plotly.express as px
-import streamlit as st
+from fastapi import FastAPI, HTTPException
+from fastapi.openapi.docs import get_swagger_ui_html
+from fastapi.responses import HTMLResponse
+from pydantic import BaseModel
 
-from src.core import (
-    ART, DATA, REPORTS, RUNS, ensure_baseline, load_registry,
-    load_production_model, prepare_xy, metrics_for, drift_report,
-    run_week, reset_artifacts,
+from src.core import load_production_model
+
+
+app = FastAPI(
+    title="DriftGuard | MLOps Control Center",
+    description="""
+## ✨ DriftGuard — Smart MLOps
+
+Drift-triggered model retraining and customer churn prediction.
+
+- 🟢 **Health:** Check the active production model.
+- 🔮 **Prediction:** Test churn predictions using customer features.
+- 📚 **Documentation:** Explore and execute API endpoints.
+- 🔄 **Model lifecycle:** Production model is resolved from the registry.
+""",
+    version="1.0",
+    docs_url=None,
+    redoc_url="/redoc",
 )
 
-# ---------- Page setup and visual system ----------
-st.set_page_config(
-    page_title="DriftGuard | MLOps Dashboard",
-    page_icon="🌿",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
 
-SAGE = "#66856E"
-DARK = "#23352B"
-MUTED = "#718078"
-PALE = "#EEF4EF"
-BORDER = "#E2E9E3"
-
-st.markdown(
-    f"""
-    <style>
-      @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
-      html, body, [class*="css"] {{ font-family: 'DM Sans', sans-serif; color: {DARK}; }}
-      .stApp {{ background: #F7F9F7; }}
-      [data-testid="stHeader"] {{ background: rgba(247,249,247,.92); }}
-      [data-testid="stSidebar"] {{ background: #FFFFFF; border-right: 1px solid {BORDER}; }}
-      [data-testid="stSidebar"] > div:first-child {{ padding-top: 1.25rem; }}
-      .block-container {{ padding-top: 1.7rem; padding-bottom: 3rem; max-width: 1500px; }}
-      h1, h2, h3 {{ font-family: 'Manrope', sans-serif !important; letter-spacing: -0.035em; color: {DARK}; }}
-      h1 {{ font-size: 2rem !important; font-weight: 800 !important; }}
-      h2 {{ font-size: 1.35rem !important; font-weight: 750 !important; }}
-      h3 {{ font-size: 1.02rem !important; font-weight: 700 !important; }}
-      [data-testid="stMetric"] {{ background: white; border: 1px solid {BORDER}; padding: 18px 20px; border-radius: 16px; box-shadow: 0 3px 12px rgba(35,53,43,.025); }}
-      [data-testid="stMetricLabel"] {{ color: {MUTED}; font-size: .83rem; }}
-      [data-testid="stMetricValue"] {{ color: {DARK}; font-family: 'Manrope',sans-serif; font-weight: 800; }}
-      [data-testid="stMetricDelta"] {{ font-size: .78rem; }}
-      div.stButton > button, div.stDownloadButton > button, [data-testid="stFormSubmitButton"] button {{
-        background: {SAGE}; color: white; border: 1px solid {SAGE}; border-radius: 10px;
-        padding: .55rem 1rem; font-weight: 700; transition: all .15s ease;
-      }}
-      div.stButton > button:hover, div.stDownloadButton > button:hover, [data-testid="stFormSubmitButton"] button:hover {{
-        background: #526E59; color: white; border-color: #526E59; transform: translateY(-1px);
-      }}
-      [data-testid="stTabs"] button {{ font-weight: 600; }}
-      [data-testid="stDataFrame"] {{ border: 1px solid {BORDER}; border-radius: 12px; overflow: hidden; }}
-      div[data-baseweb="select"] > div, div[data-baseweb="input"] > div {{ border-radius: 10px; border-color: {BORDER}; }}
-      .brand {{ display:flex; align-items:center; gap:11px; padding: 4px 3px 24px; }}
-      .brand-mark {{ width:42px;height:42px;border-radius:13px;background:{PALE};display:flex;align-items:center;justify-content:center;font-size:22px; }}
-      .brand-name {{ font-family:'Manrope',sans-serif;font-size:20px;font-weight:800;color:{DARK};line-height:1.1; }}
-      .brand-sub {{ color:{MUTED};font-size:11px;letter-spacing:.08em;text-transform:uppercase;margin-top:4px; }}
-      .eyebrow {{ color:{SAGE};font-size:11px;letter-spacing:.13em;text-transform:uppercase;font-weight:800;margin-bottom:7px; }}
-      .hero {{ background:linear-gradient(115deg,#FFFFFF 0%,#F0F5F0 100%);border:1px solid {BORDER};border-radius:20px;padding:25px 28px;margin-bottom:22px; }}
-      .hero-title {{ font-family:'Manrope',sans-serif;font-size:27px;font-weight:800;letter-spacing:-.045em;color:{DARK};line-height:1.2; }}
-      .hero-copy {{ color:{MUTED};font-size:14px;line-height:1.6;margin-top:9px;max-width:720px; }}
-      .status-pill {{ display:inline-block;padding:6px 10px;border-radius:999px;background:#E5F2E8;color:#41694A;font-size:11px;font-weight:800;letter-spacing:.04em; }}
-      .section-head {{ display:flex;justify-content:space-between;align-items:center;margin:26px 0 12px; }}
-      .section-note {{ color:{MUTED};font-size:12px; }}
-      .soft-card {{ background:white;border:1px solid {BORDER};border-radius:16px;padding:18px 20px;height:100%; }}
-      .soft-label {{ color:{MUTED};font-size:12px;font-weight:600;margin-bottom:9px; }}
-      .soft-value {{ color:{DARK};font-family:'Manrope',sans-serif;font-size:25px;font-weight:800; }}
-      .soft-foot {{ color:{MUTED};font-size:12px;margin-top:5px; }}
-      .small-label {{ color:{MUTED};font-size:12px; }}
-      footer {{ visibility:hidden; }}
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
-# ---------- Sidebar ----------
-with st.sidebar:
-    st.markdown(
-        f'<div class="brand"><div class="brand-mark">🌿</div><div><div class="brand-name">DriftGuard</div><div class="brand-sub">Model operations</div></div></div>',
-        unsafe_allow_html=True,
-    )
-    st.caption("CHURN PREDICTION PLATFORM")
-    page = st.radio(
-        "NAVIGATION",
-        ["Overview", "Prediction playground", "Model monitoring", "Retraining workflow", "Policy comparison", "Model registry & logs"],
-        label_visibility="collapsed",
-        key="navigation",
-    )
-    st.markdown("---")
-    st.markdown("**Environment**")
-    st.markdown(f'<span class="status-pill">● LOCAL DEMO</span>', unsafe_allow_html=True)
-    st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
-    st.caption("Drift-triggered retraining · Safe model promotion")
-
-if not (DATA / "churn_reference_train.csv").exists():
-    st.error("Dataset files are missing. Extract the supplied churn CSV files into the project's data/ folder.")
-    st.stop()
-
-try:
-    ensure_baseline()
-    registry = load_registry()
-except Exception as exc:
-    st.error(f"Could not initialize the baseline model: {exc}")
-    st.stop()
-
-history = json.loads(RUNS.read_text()) if RUNS.exists() else []
-production_version = registry.get("production_version") or "Not set"
-model_count = len(registry.get("models", {}))
-promotions = sum(bool(row.get("promoted", False)) for row in history)
-
-# ---------- Shared helpers ----------
-def page_header(eyebrow, title, subtitle):
-    st.markdown(f'<div class="eyebrow">{eyebrow}</div>', unsafe_allow_html=True)
-    st.title(title)
-    st.markdown(f'<div style="color:{MUTED};font-size:14px;margin-top:-7px;margin-bottom:22px">{subtitle}</div>', unsafe_allow_html=True)
-
-
-def card(label, value, foot=""):
-    st.markdown(
-        f'<div class="soft-card"><div class="soft-label">{label}</div><div class="soft-value">{value}</div><div class="soft-foot">{foot}</div></div>',
-        unsafe_allow_html=True,
+@app.get("/docs", include_in_schema=False)
+def custom_docs():
+    page = get_swagger_ui_html(
+        openapi_url=app.openapi_url,
+        title="DriftGuard | MLOps Control Center",
+        swagger_favicon_url="https://fastapi.tiangolo.com/img/favicon.png",
+        swagger_ui_parameters={
+            "defaultModelsExpandDepth": -1,
+            "displayRequestDuration": True,
+            "filter": True,
+            "docExpansion": "list",
+            "persistAuthorization": True,
+        },
     )
 
+    html = page.body.decode("utf-8")
 
-def load_weekly_drift():
-    ref = pd.read_csv(DATA / "churn_reference_train.csv")
-    rows = []
-    for week in range(1, 9):
-        path = DATA / f"churn_week_{week}.csv"
-        if path.exists():
-            try:
-                result = drift_report(ref, pd.read_csv(path))
-                result["week"] = f"Week {week}"
-                rows.append(result)
-            except Exception:
-                continue
-    return pd.concat(rows, ignore_index=True) if rows else pd.DataFrame()
+    style = """
+
+<style>
+body {
+    background: #f8fafc !important;
+    color: #1e293b !important;
+}
+
+.swagger-ui {
+    font-family: "Segoe UI", Arial, sans-serif;
+}
+
+.swagger-ui .topbar {
+    background: linear-gradient(100deg,#6d28d9,#9333ea,#0891b2) !important;
+    padding: 20px 0 !important;
+    border-bottom: 3px solid #67e8f9;
+}
+
+.swagger-ui .topbar-wrapper .link span {
+    color: white !important;
+    font-size: 25px;
+    font-weight: 900;
+}
+
+.swagger-ui .info h1,
+.swagger-ui .info h2,
+.swagger-ui .info h3,
+.swagger-ui .info p,
+.swagger-ui .info li,
+.swagger-ui .opblock-tag {
+    color: #1e293b !important;
+}
+
+.swagger-ui .info {
+    margin: 35px 0;
+}
+
+.swagger-ui .info .title {
+    color: #6d28d9 !important;
+    font-size: 36px;
+}
+
+.swagger-ui .scheme-container,
+.swagger-ui section.models {
+    background: white !important;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    box-shadow: 0 8px 25px #64748b18;
+}
+
+.swagger-ui .opblock {
+    border-radius: 14px !important;
+    overflow: hidden;
+    margin: 18px 0 !important;
+    box-shadow: 0 6px 20px #64748b20;
+    transition: transform .2s, box-shadow .2s;
+}
+
+.swagger-ui .opblock:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 26px #64748b30;
+}
+
+.swagger-ui .opblock.opblock-get {
+    background: #ecfeff !important;
+    border: 1px solid #06b6d4 !important;
+}
+
+.swagger-ui .opblock.opblock-post {
+    background: #ecfdf5 !important;
+    border: 1px solid #10b981 !important;
+}
+
+.swagger-ui .opblock .opblock-summary {
+    border-color: #dbeafe !important;
+    padding: 12px;
+}
+
+.swagger-ui .opblock .opblock-summary-method {
+    border-radius: 8px !important;
+    min-width: 82px;
+    font-weight: 900;
+}
+
+.swagger-ui .opblock-summary-description,
+.swagger-ui .opblock .opblock-summary-path,
+.swagger-ui .opblock .opblock-summary-path__deprecated {
+    color: #334155 !important;
+}
+
+.swagger-ui .opblock .opblock-section-header {
+    background: #f1f5f9 !important;
+}
+
+.swagger-ui .opblock-description-wrapper p,
+.swagger-ui .response-col_description,
+.swagger-ui .parameter__name,
+.swagger-ui .parameter__type,
+.swagger-ui label,
+.swagger-ui .tab li,
+.swagger-ui .response-col_status {
+    color: #334155 !important;
+}
+
+.swagger-ui .btn {
+    border-radius: 9px !important;
+}
+
+.swagger-ui .btn.execute {
+    background: linear-gradient(100deg,#7c3aed,#0891b2) !important;
+    color: white !important;
+    border: none !important;
+    box-shadow: 0 4px 15px #7c3aed30;
+}
+
+.swagger-ui input,
+.swagger-ui textarea,
+.swagger-ui select {
+    background: white !important;
+    color: #1e293b !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 7px;
+}
+
+.swagger-ui a {
+    color: #0891b2 !important;
+}
+
+.swagger-ui table thead tr td,
+.swagger-ui table thead tr th {
+    color: #6d28d9 !important;
+}
+
+.swagger-ui .model-box,
+.swagger-ui .model {
+    color: #334155 !important;
+}
+
+.swagger-ui .filter input {
+    background: white !important;
+    color: #1e293b !important;
+}
+
+.swagger-ui .responses-inner h4,
+.swagger-ui .responses-inner h5 {
+    color: #6d28d9 !important;
+}
+
+@media (max-width: 600px) {
+    .swagger-ui .info .title {
+        font-size: 27px;
+    }
+
+    .swagger-ui .wrapper {
+        padding: 0 12px;
+    }
+}
+</style>
+
+    """
+
+    html = html.replace("</head>", style + "</head>")
+    return HTMLResponse(html)
 
 
-def load_weekly_performance():
-    model, _ = load_production_model()
-    rows = []
-    for week in range(1, 9):
-        path = DATA / f"churn_week_{week}.csv"
-        if path.exists():
-            try:
-                X, y = prepare_xy(pd.read_csv(path))
-                metrics = metrics_for(model, X, y)
-                metrics["week"] = f"Week {week}"
-                rows.append(metrics)
-            except Exception:
-                continue
-    return pd.DataFrame(rows)
 
-# ---------- Overview ----------
-if page == "Overview":
-    st.markdown(
-        f'''<div class="hero"><div class="eyebrow">YOUR MLOPS WORKSPACE</div>
-        <div class="hero-title">Model health, at a glance.</div>
-        <div class="hero-copy">Monitor customer churn predictions, explore feature drift, and run a controlled retraining workflow — all from one workspace.</div>
-        <div style="margin-top:17px"><span class="status-pill">● Registry connected</span></div></div>''',
-        unsafe_allow_html=True,
-    )
-    c1, c2, c3, c4 = st.columns(4)
-    with c1: st.metric("Production model", production_version, help="Currently selected model from the registry")
-    with c2: st.metric("Registered models", model_count)
-    with c3: st.metric("Weekly runs recorded", len(history))
-    with c4: st.metric("Successful promotions", promotions)
+DASHBOARD_HTML = r"""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DriftGuard | MLOps Dashboard</title>
+<style>
+:root{--sage:#718b75;--sage-dark:#49644f;--sage-light:#edf3ed;--ink:#202a23;--muted:#778178;--line:#e5ebe5;--paper:#f7f9f6;--white:#fff;--amber:#b7791f;--red:#b45353}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.5 Inter,"Segoe UI",Arial,sans-serif}
+.shell{display:flex;min-height:100vh}.sidebar{width:245px;background:#fff;border-right:1px solid var(--line);padding:28px 18px;display:flex;flex-direction:column;gap:28px;flex-shrink:0}
+.brand{display:flex;gap:11px;align-items:center;padding:0 9px}.logo{height:39px;width:39px;border-radius:13px;background:var(--sage-light);display:grid;place-items:center;color:var(--sage-dark);font-size:20px;font-weight:800}.brand strong{display:block;font-size:17px;letter-spacing:-.4px}.brand small{color:var(--muted);font-size:11px}
+.nav-label{font-size:10px;text-transform:uppercase;letter-spacing:1.4px;color:#9aa39a;padding:0 12px;margin-bottom:8px}.nav button{display:flex;align-items:center;gap:12px;width:100%;border:0;background:transparent;color:#6c766d;padding:12px;border-radius:10px;text-align:left;cursor:pointer;font:inherit;margin:3px 0}.nav button.active,.nav button:hover{background:var(--sage-light);color:var(--sage-dark);font-weight:650}.nav .ico{width:20px;text-align:center;font-size:16px}
+.side-bottom{margin-top:auto;padding:14px;border-radius:13px;background:#f6f8f5;border:1px solid var(--line)}.side-bottom small{color:var(--muted)}.status-dot{display:inline-block;width:8px;height:8px;background:#5e9b70;border-radius:50%;margin-right:7px}
+main{padding:34px clamp(18px,3.5vw,48px);flex:1;min-width:0;max-width:1600px;margin:0 auto}.topline{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:26px}.eyebrow{color:var(--sage-dark);text-transform:uppercase;font-size:10px;font-weight:750;letter-spacing:1.7px}.topline h1{font-size:29px;letter-spacing:-1px;margin:5px 0 4px}.sub{color:var(--muted);margin:0}.top-actions{display:flex;align-items:center;gap:10px}.pill{background:#e7f2e8;color:#3f7650;border:1px solid #d3e5d5;border-radius:100px;padding:7px 11px;font-size:12px;font-weight:650;white-space:nowrap}.button{background:var(--sage-dark);color:#fff;border:0;padding:10px 15px;border-radius:9px;cursor:pointer;font:inherit;font-weight:650}.button:hover{background:#3d5743}.button.secondary{background:#fff;color:var(--sage-dark);border:1px solid #cbd8cb}
+.grid{display:grid;gap:16px}.kpis{grid-template-columns:repeat(4,minmax(0,1fr));margin:22px 0}.card{background:#fff;border:1px solid var(--line);border-radius:15px;padding:20px;box-shadow:0 3px 12px #283a2805;min-width:0}.kpi-head{display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:12px}.kpi-icon{width:33px;height:33px;border-radius:10px;display:grid;place-items:center;background:var(--sage-light);color:var(--sage-dark);font-size:16px}.value{font-size:27px;font-weight:750;letter-spacing:-.8px;margin:13px 0 3px}.hint{font-size:11px;color:var(--muted)}.two{grid-template-columns:minmax(0,1.3fr) minmax(280px,.7fr)}.section-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:15px}.section-title h2{font-size:15px;margin:0;letter-spacing:-.2px}.section-title p{color:var(--muted);font-size:11px;margin:4px 0 0}.link{color:var(--sage-dark);text-decoration:none;font-weight:650;font-size:12px}.bars{height:185px;display:flex;align-items:end;gap:12px;padding:15px 8px 0;border-bottom:1px solid var(--line)}.bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:end;height:100%;gap:8px}.bar{width:min(34px,75%);border-radius:7px 7px 2px 2px;background:#b9cbb9;min-height:8px;position:relative}.bar.promoted{background:var(--sage)}.bar-label{font-size:10px;color:var(--muted)}.legend{display:flex;gap:16px;color:var(--muted);font-size:11px;margin-top:14px}.legend i{display:inline-block;width:8px;height:8px;border-radius:3px;margin-right:5px;background:var(--sage)}.legend .other{background:#b9cbb9}
+.health-row{display:flex;justify-content:space-between;gap:12px;padding:13px 0;border-bottom:1px solid #eff2ee}.health-row:last-child{border:0}.health-row span{color:var(--muted)}.health-row strong{font-size:12px}.healthy{color:#4d8a5d}.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:12px}th{text-align:left;color:var(--muted);font-weight:600;background:#fafbf9}th,td{padding:12px 10px;border-bottom:1px solid #edf0ec;white-space:nowrap}.status{padding:4px 8px;border-radius:99px;font-size:10px;background:#edf5ed;color:#4d8055}.status.failed{background:#fff1ed;color:#ad5748}.page{display:none}.page.active{display:block}.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}.field label{display:block;font-size:12px;font-weight:650;margin-bottom:6px}.field input,.field select{width:100%;padding:11px 12px;border:1px solid #dbe3da;border-radius:9px;background:#fff;color:var(--ink);font:inherit}.field input:focus,.field select:focus{outline:2px solid #d5e5d6;border-color:var(--sage)}.result{margin-top:18px;padding:18px;border-radius:12px;background:var(--sage-light);display:none}.result strong{font-size:18px}.result .prob{font-size:30px;font-weight:800;color:var(--sage-dark)}.error{color:var(--red);white-space:pre-wrap}.footnote{font-size:11px;color:var(--muted);margin-top:14px}
+@media(max-width:950px){.sidebar{width:200px}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.two{grid-template-columns:1fr}}
+@media(max-width:650px){.shell{display:block}.sidebar{width:100%;padding:15px;gap:14px;border-right:0;border-bottom:1px solid var(--line)}.brand{padding:0}.nav{display:flex;overflow-x:auto}.nav-label,.side-bottom{display:none}.nav button{white-space:nowrap;width:auto;padding:9px}.topline{align-items:flex-start;flex-direction:column}.topline h1{font-size:24px}.kpis{gap:10px}.card{padding:15px}.value{font-size:23px}.form-grid{grid-template-columns:1fr}main{padding:22px 14px}}
+</style>
+</head>
+<body>
+<div class="shell">
+<aside class="sidebar">
+  <div class="brand"><div class="logo">D</div><div><strong>DriftGuard</strong><small>MLOps control center</small></div></div>
+  <div><div class="nav-label">Workspace</div><nav class="nav">
+    <button class="active" data-page="overview"><span class="ico">◫</span>Overview</button>
+    <button data-page="predict"><span class="ico">✳</span>Prediction playground</button>
+    <button data-page="monitoring"><span class="ico">⌁</span>Model monitoring</button>
+    <button data-page="registry"><span class="ico">▤</span>Model registry</button>
+  </nav></div>
+  <div class="side-bottom"><div><span class="status-dot"></span><strong>API connection</strong></div><small id="side-health">Checking service…</small></div>
+</aside>
+<main>
+  <div class="topline"><div><div class="eyebrow">Machine learning operations</div><h1 id="page-title">Overview</h1><p class="sub" id="page-sub">A clear view of your production model and retraining activity.</p></div><div class="top-actions"><span class="pill" id="live-pill">● Checking status</span><button class="button secondary" onclick="refreshData()">↻ Refresh</button></div></div>
 
-    st.markdown('<div class="section-head"><h3>Workspace</h3><span class="section-note">Choose a workflow to continue</span></div>', unsafe_allow_html=True)
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        st.markdown('<div class="soft-card"><div style="font-size:22px">◉</div><h3>Prediction playground</h3><div class="small-label">Test a customer record and see the churn score from the active model.</div></div>', unsafe_allow_html=True)
-        st.button("Open prediction →", key="go_predict", use_container_width=True,
-                  on_click=lambda: st.session_state.update({"navigation": "Prediction playground"}))
-    with c2:
-        st.markdown('<div class="soft-card"><div style="font-size:22px">⌁</div><h3>Model monitoring</h3><div class="small-label">Review PSI drift signals and weekly model performance.</div></div>', unsafe_allow_html=True)
-        st.button("Open monitoring →", key="go_monitor", use_container_width=True,
-                  on_click=lambda: st.session_state.update({"navigation": "Model monitoring"}))
-    with c3:
-        st.markdown('<div class="soft-card"><div style="font-size:22px">↻</div><h3>Retraining workflow</h3><div class="small-label">Run the eight-week simulation with configurable retraining policy.</div></div>', unsafe_allow_html=True)
-        st.button("Open workflow →", key="go_workflow", use_container_width=True,
-                  on_click=lambda: st.session_state.update({"navigation": "Retraining workflow"}))
+  <section class="page active" id="page-overview">
+    <div class="grid kpis">
+      <div class="card"><div class="kpi-head">Production model <span class="kpi-icon">◈</span></div><div class="value" id="kpi-version">—</div><div class="hint">Currently registered production version</div></div>
+      <div class="card"><div class="kpi-head">Registered models <span class="kpi-icon">▤</span></div><div class="value" id="kpi-models">—</div><div class="hint">Versions recorded in the registry</div></div>
+      <div class="card"><div class="kpi-head">Weekly run records <span class="kpi-icon">⌁</span></div><div class="value" id="kpi-runs">—</div><div class="hint">Available experiment history</div></div>
+      <div class="card"><div class="kpi-head">Promotions recorded <span class="kpi-icon">↗</span></div><div class="value" id="kpi-promotions">—</div><div class="hint">Recorded successful model promotions</div></div>
+    </div>
+    <div class="grid two">
+      <div class="card"><div class="section-title"><div><h2>Weekly workflow activity</h2><p>Promotion records from saved experiment history</p></div><a class="link" href="#" onclick="showPage('monitoring');return false">View monitoring →</a></div><div id="weekly-bars" class="bars"><span class="hint">Loading recorded runs…</span></div><div class="legend"><span><i></i>Promotion recorded</span><span><i class="other"></i>Other run record</span></div></div>
+      <div class="card"><div class="section-title"><div><h2>Service health</h2><p>Live API check</p></div><span class="pill">Live</span></div>
+        <div class="health-row"><span>FastAPI service</span><strong id="api-status">Checking…</strong></div>
+        <div class="health-row"><span>Active model version</span><strong id="health-version">—</strong></div>
+        <div class="health-row"><span>Prediction route</span><strong class="healthy">/predict</strong></div>
+        <div class="health-row"><span>API documentation</span><strong><a class="link" href="/docs">Open /docs ↗</a></strong></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px"><div class="section-title"><div><h2>Production model metrics</h2><p>Metrics stored in the model registry for the active production version</p></div></div><div class="grid kpis" style="margin:0" id="metrics-cards"></div><p class="footnote">Metrics shown here are recorded registry values, not a real-time evaluation on newly arriving data.</p></div>
+  </section>
 
-    drift = load_weekly_drift()
-    if not drift.empty:
-        st.markdown('<div class="section-head"><h3>Drift snapshot</h3><span class="section-note">Preloaded eight-week dataset</span></div>', unsafe_allow_html=True)
-        d1, d2 = st.columns([1.35, 1])
-        with d1:
-            heat = drift.pivot_table(index="feature", columns="week", values="psi", aggfunc="mean")
-            st.plotly_chart(px.imshow(heat, aspect="auto", color_continuous_scale=[[0,"#E8F0E9"],[0.5,"#AFC5B2"],[1,"#66856E"]], title="Feature drift · PSI by week", labels={"color":"PSI"}), use_container_width=True)
-        with d2:
-            summary = drift.groupby("week", as_index=False).agg(drifted_features=("psi", lambda values: int((values >= 0.25).sum())))
-            st.plotly_chart(px.bar(summary, x="week", y="drifted_features", title="Features at high drift (PSI ≥ 0.25)", color_discrete_sequence=[SAGE]), use_container_width=True)
+  <section class="page" id="page-predict">
+    <div class="card"><div class="section-title"><div><h2>Customer churn prediction</h2><p>Submit customer features to the live production API.</p></div><span class="pill">POST /predict</span></div>
+      <form id="predict-form"><div class="form-grid">
+        <div class="field"><label for="Tenure_Months">Tenure (months)</label><input id="Tenure_Months" name="Tenure_Months" type="number" min="0" value="12" required></div>
+        <div class="field"><label for="Contract_Type">Contract type</label><select id="Contract_Type" name="Contract_Type"><option>Month-to-month</option><option>One year</option><option>Two year</option></select></div>
+        <div class="field"><label for="Internet_Service">Internet service</label><select id="Internet_Service" name="Internet_Service"><option>Fiber optic</option><option>DSL</option><option>No</option></select></div>
+        <div class="field"><label for="Monthly_Charges">Monthly charges</label><input id="Monthly_Charges" name="Monthly_Charges" type="number" min="0" step=".01" value="79.99" required></div>
+        <div class="field"><label for="Total_Charges">Total charges</label><input id="Total_Charges" name="Total_Charges" type="number" min="0" step=".01" value="959.88" required></div>
+        <div class="field"><label for="Support_Calls_Last_Month">Support calls last month</label><input id="Support_Calls_Last_Month" name="Support_Calls_Last_Month" type="number" min="0" value="2" required></div>
+        <div class="field"><label for="Avg_Data_Usage_GB">Average data usage (GB)</label><input id="Avg_Data_Usage_GB" name="Avg_Data_Usage_GB" type="number" min="0" step=".1" value="5.2" required></div>
+        <div class="field"><label for="Late_Payments">Late payments</label><input id="Late_Payments" name="Late_Payments" type="number" min="0" value="1" required></div>
+      </div><div style="display:flex;gap:10px;align-items:center;margin-top:20px"><button class="button" type="submit" id="predict-btn">Run prediction →</button><button class="button secondary" type="reset">Reset form</button></div></form>
+      <div class="result" id="prediction-result"><div id="prediction-label"></div><div class="prob" id="prediction-prob"></div><div id="prediction-model" class="hint"></div></div><p class="footnote">This prediction is generated by the currently deployed production model. It is a demonstration, not a decision about a real customer.</p>
+    </div>
+  </section>
 
-# ---------- Prediction ----------
-elif page == "Prediction playground":
-    page_header("INFERENCE", "Prediction playground", "Enter customer details to score churn risk using the current production model.")
-    model, entry = load_production_model()
-    ref = pd.read_csv(DATA / "churn_reference_train.csv")
-    target = next((col for col in ["Churn", "churn", "Exited", "Exited_Flag", "target", "Target"] if col in ref.columns), None)
-    if target is None:
-        st.error("Could not identify the target column in the reference dataset.")
-        st.stop()
-    drop_cols = [target] + [col for col in ["Customer_ID", "customer_id", "CustomerID", "customerID", "ID", "id"] if col in ref.columns]
-    Xref = ref.drop(columns=drop_cols)
-    sample = Xref.iloc[0].to_dict()
-    st.markdown(f'<div class="soft-card"><div class="soft-label">ACTIVE PRODUCTION MODEL</div><div class="soft-value">{entry["version"]}</div><div class="soft-foot">Features are prefilled from a sample record. Adjust values before running a prediction.</div></div>', unsafe_allow_html=True)
-    st.markdown("### Customer features")
-    with st.form("predict_form", border=True):
-        inputs = {}
-        cols = st.columns(3)
-        for i, col in enumerate(entry["features"]):
-            value = sample.get(col)
-            with cols[i % 3]:
-                if pd.api.types.is_numeric_dtype(Xref[col]):
-                    inputs[col] = st.number_input(col.replace("_", " "), value=float(value) if pd.notna(value) else 0.0, help=f"Model input: {col}")
-                else:
-                    options = sorted(Xref[col].dropna().astype(str).unique().tolist())
-                    selected = str(value) if pd.notna(value) else (options[0] if options else "")
-                    inputs[col] = st.selectbox(col.replace("_", " "), options, index=options.index(selected) if selected in options else 0)
-        submitted = st.form_submit_button("Run churn prediction", type="primary", use_container_width=True)
-    if submitted:
-        frame = pd.DataFrame([inputs])[entry["features"]]
-        prediction = int(model.predict(frame)[0])
-        probability = float(model.predict_proba(frame)[0, 1])
-        left, right = st.columns([1, 1])
-        with left:
-            if prediction:
-                st.error("Higher churn risk · model predicts churn")
-            else:
-                st.success("Lower churn risk · model predicts no churn")
-            st.caption(f"Prediction generated by model {entry['version']}.")
-        with right:
-            st.metric("Churn probability", f"{probability:.1%}")
-            st.progress(min(max(probability, 0.0), 1.0), text="Estimated probability")
-        st.dataframe(frame, use_container_width=True, hide_index=True)
+  <section class="page" id="page-monitoring">
+    <div class="grid two">
+      <div class="card"><div class="section-title"><div><h2>Weekly workflow records</h2><p>Saved run records, not continuous real-time monitoring</p></div></div><div class="table-wrap"><table><thead><tr><th>Week</th><th>Policy</th><th>Status</th><th>Promoted</th></tr></thead><tbody id="runs-table"><tr><td colspan="4">Loading…</td></tr></tbody></table></div></div>
+      <div class="card"><div class="section-title"><div><h2>Production performance</h2><p>Stored model evaluation metrics</p></div></div><div id="monitor-metrics"></div><p class="footnote">Drift and workflow records are loaded from the repository artifacts bundled with this service. They update only when those records are updated and redeployed.</p></div>
+    </div>
+  </section>
 
-# ---------- Monitoring ----------
-elif page == "Model monitoring":
-    page_header("OBSERVABILITY", "Model monitoring", "Inspect feature-level drift and weekly classification performance.")
-    drift = load_weekly_drift()
-    if drift.empty:
-        st.info("No drift results were available.")
-    else:
-        high = int((drift["psi"] >= 0.25).sum())
-        max_psi = float(drift["psi"].max())
-        a, b, c = st.columns(3)
-        with a: st.metric("Feature-week checks", len(drift))
-        with b: st.metric("High-drift signals", high)
-        with c: st.metric("Maximum PSI", f"{max_psi:.3f}")
-        heat = drift.pivot_table(index="feature", columns="week", values="psi", aggfunc="mean")
-        st.plotly_chart(px.imshow(heat, aspect="auto", color_continuous_scale=[[0,"#E8F0E9"],[0.5,"#AFC5B2"],[1,"#66856E"]], title="Feature drift heatmap · Population Stability Index", labels={"color":"PSI"}), use_container_width=True)
-        st.dataframe(drift.sort_values("psi", ascending=False), use_container_width=True, hide_index=True)
-    perf = load_weekly_performance()
-    if not perf.empty:
-        st.markdown("### Weekly model performance")
-        metrics = [m for m in ["f1", "roc_auc", "accuracy", "precision", "recall"] if m in perf.columns]
-        if metrics:
-            st.plotly_chart(px.line(perf, x="week", y=metrics, markers=True, title="Performance by week", color_discrete_sequence=[SAGE, "#A6BCA9", "#B59D78", "#7D9AA0", "#9A8CB8"]), use_container_width=True)
-        st.dataframe(perf, use_container_width=True, hide_index=True)
+  <section class="page" id="page-registry">
+    <div class="card"><div class="section-title"><div><h2>Model registry</h2><p>Production version and registered model inventory</p></div></div><div class="grid kpis" style="margin:0 0 18px"><div><div class="hint">Production version</div><div class="value" id="reg-version">—</div></div><div><div class="hint">Registered versions</div><div class="value" id="reg-count">—</div></div></div><div class="table-wrap"><table><thead><tr><th>Version</th><th>Role</th><th>F1</th><th>ROC-AUC</th></tr></thead><tbody id="registry-table"><tr><td colspan="4">Loading…</td></tr></tbody></table></div><p class="footnote">Registry information is read from the deployed artifacts/registry.json file.</p></div>
+  </section>
+</main>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const titles={overview:["Overview","A clear view of your production model and retraining activity."],predict:["Prediction playground","Test a customer record against the deployed production API."],monitoring:["Model monitoring","Review saved weekly workflow records and model performance."],registry:["Model registry","Inspect the registered versions and the active production model."]};
+function showPage(name){document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));$("page-"+name).classList.add("active");document.querySelectorAll(".nav button").forEach(b=>b.classList.toggle("active",b.dataset.page===name));$("page-title").textContent=titles[name][0];$("page-sub").textContent=titles[name][1];}
+document.querySelectorAll(".nav button").forEach(b=>b.addEventListener("click",()=>showPage(b.dataset.page)));
+let data=null;
+async function refreshData(){
+  try{
+    const h=await fetch("/health",{cache:"no-store"});
+    const health=await h.json();
+    $("api-status").textContent=h.ok?"Healthy":"Unavailable";$("api-status").className=h.ok?"healthy":"error";
+    $("health-version").textContent=health.model_version||"—";$("side-health").textContent=h.ok?"Connected · model "+(health.model_version||"active"):"API returned an error";
+    $("live-pill").textContent=h.ok?"● API connected":"● API issue";$("live-pill").style.background=h.ok?"#e7f2e8":"#fff0ed";$("live-pill").style.color=h.ok?"#3f7650":"#ad5748";
+    const r=await fetch("/dashboard-data",{cache:"no-store"});data=await r.json();
+    $("kpi-version").textContent=data.production_version;$("kpi-models").textContent=data.registered_models;$("kpi-runs").textContent=data.weekly_runs;$("kpi-promotions").textContent=data.promotions;
+    $("reg-version").textContent=data.production_version;$("reg-count").textContent=data.registered_models;
+    const metrics=data.metrics||{};const keys=[["f1","F1 score"],["roc_auc","ROC-AUC"],["accuracy","Accuracy"],["precision","Precision"],["recall","Recall"]];
+    $("metrics-cards").innerHTML=keys.map(([k,label])=>`<div class="card" style="padding:14px;background:#fafbf9"><div class="hint">${label}</div><div class="value" style="font-size:22px">${metrics[k]==null?"—":(Number(metrics[k])*100).toFixed(1)+"%"}</div></div>`).join("");
+    $("monitor-metrics").innerHTML=keys.map(([k,label])=>`<div class="health-row"><span>${label}</span><strong>${metrics[k]==null?"—":(Number(metrics[k])*100).toFixed(2)+"%"}</strong></div>`).join("");
+    const runs=data.runs||[];const max=Math.max(1,...runs.map(x=>Number(x.week)||0));
+    $("weekly-bars").innerHTML=runs.length?runs.map((x,i)=>`<div class="bar-wrap"><div class="bar ${x.promoted?"promoted":""}" style="height:${Math.max(10,((Number(x.week)||i+1)/max)*125)}px" title="${x.promoted?"Promotion recorded":"No promotion recorded"}"></div><div class="bar-label">W${x.week||i+1}</div></div>`).join(""):`<span class="hint">No saved weekly records found.</span>`;
+    $("runs-table").innerHTML=runs.length?runs.map((x,i)=>`<tr><td>Week ${x.week||i+1}</td><td>${x.policy||"—"}</td><td><span class="status">${x.status||"recorded"}</span></td><td>${x.promoted?"Yes":"No"}</td></tr>`).join(""):`<tr><td colspan="4">No saved run records.</td></tr>`;
+    const models=Array.isArray(data.models)?data.models:[];
+    $("registry-table").innerHTML=models.length?models.map(m=>`<tr><td>${m.version}</td><td>${m.version===data.production_version?'<span class="status">Production</span>':'Registered'}</td><td>${m.metrics?.f1==null?"—":(m.metrics.f1*100).toFixed(1)+"%"}</td><td>${m.metrics?.roc_auc==null?"—":(m.metrics.roc_auc*100).toFixed(1)+"%"}</td></tr>`).join(""):`<tr><td colspan="4">Registry model list is not available from the dashboard summary.</td></tr>`;
+  }catch(e){$("side-health").textContent="Could not connect";$("api-status").textContent="Unavailable";$("live-pill").textContent="● Connection issue";}
+}
+$("predict-form").addEventListener("submit",async e=>{
+  e.preventDefault();const btn=$("predict-btn");btn.disabled=true;btn.textContent="Predicting…";$("prediction-result").style.display="none";
+  const f=new FormData(e.target),features={};
+  for(const [k,v] of f.entries()){features[k]=["Contract_Type","Internet_Service"].includes(k)?v:Number(v);}
+  try{
+    const res=await fetch("/predict",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({features})});
+    const out=await res.json();if(!res.ok)throw new Error(out.detail||"Prediction request failed");
+    $("prediction-label").textContent=out.prediction===1?"Higher churn risk":"Lower churn risk";
+    $("prediction-prob").textContent=(Number(out.churn_probability)*100).toFixed(1)+"%";
+    $("prediction-model").textContent="Churn probability · Model "+out.model_version;
+    $("prediction-result").style.display="block";$("prediction-result").style.background=out.prediction===1?"#fff5e9":"#edf5ed";
+  }catch(err){$("prediction-result").style.display="block";$("prediction-result").className="result error";$("prediction-label").textContent="Prediction failed";$("prediction-prob").textContent="";$("prediction-model").textContent=err.message;}
+  finally{btn.disabled=false;btn.textContent="Run prediction →";}
+});
+refreshData();
+</script>
+</body>
+</html>
+"""
 
-# ---------- Workflow ----------
-elif page == "Retraining workflow":
-    page_header("ORCHESTRATION", "Retraining workflow", "Run the eight-week simulation sequentially and inspect model promotion decisions.")
-    st.info("This runs the project's local simulation. It does not start a continuously running cloud scheduler.")
-    with st.container(border=True):
-        policy = st.selectbox("Retraining policy", ["drift_low", "drift_high", "never", "weekly"], format_func=lambda value: {"drift_low":"Drift-triggered · lower threshold", "drift_high":"Drift-triggered · higher threshold", "never":"Never retrain", "weekly":"Retrain every week"}[value])
-        threshold = st.slider("PSI trigger threshold", 0.05, 0.50, 0.10 if policy == "drift_low" else 0.25, 0.05)
-        fault = st.selectbox("Fault injection", ["None", "Week 3 · invalid data", "Week 5 · reject candidate"])
-        reset = st.checkbox("Reset registry before running", value=False)
-        run = st.button("Run all 8 weeks", type="primary", use_container_width=True)
-    if run:
-        if reset:
-            reset_artifacts()
-        ensure_baseline()
-        results = []
-        progress = st.progress(0, text="Starting weekly workflow…")
-        for week in range(1, 9):
-            scenario = None
-            if fault.startswith("Week 3") and week == 3:
-                scenario = "missing_column"
-            if fault.startswith("Week 5") and week == 5:
-                scenario = "candidate_reject"
-            results.append(run_week(week, policy, threshold, scenario))
-            progress.progress(week / 8, text=f"Completed week {week} of 8")
-        st.session_state["last_results"] = results
-        st.success("Workflow simulation completed.")
-    if "last_results" in st.session_state:
-        results = pd.DataFrame(st.session_state["last_results"])
-        st.markdown("### Run results")
-        st.dataframe(results, use_container_width=True, hide_index=True)
-        st.download_button("Download workflow results", json.dumps(st.session_state["last_results"], indent=2, default=str), "driftguard_workflow_results.json")
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+def home():
+    """Serve the DriftGuard dashboard from the same FastAPI service."""
+    return HTMLResponse(DASHBOARD_HTML)
 
-# ---------- Policy comparison ----------
-elif page == "Policy comparison":
-    page_header("EXPERIMENTS", "Policy comparison", "Compare retraining frequency, promotion outcomes, performance, and modeled cost.")
-    st.caption("Cost is reported in the project's abstract cost units, not actual cloud billing.")
-    if st.button("Run all four policies", type="primary", use_container_width=True):
-        all_results = []
-        progress = st.progress(0, text="Preparing policy simulations…")
-        policies = [("never", 0.10), ("weekly", 0.10), ("drift_low", 0.10), ("drift_high", 0.25)]
-        for index, (policy, threshold) in enumerate(policies):
-            reset_artifacts()
-            ensure_baseline()
-            for week in range(1, 9):
-                result = run_week(week, policy, threshold)
-                result["policy"] = policy
-                all_results.append(result)
-            progress.progress((index + 1) / len(policies), text=f"Completed {policy} policy")
-        st.session_state["policy_results"] = all_results
-        (REPORTS / "policy_results.json").write_text(json.dumps(all_results, indent=2, default=str))
-        st.success("All four policy simulations completed.")
-    if "policy_results" in st.session_state:
-        records = pd.DataFrame(st.session_state["policy_results"])
-        summaries = []
-        for policy, group in records.groupby("policy"):
-            attempts = int(group.get("retraining_triggered", pd.Series(False, index=group.index)).fillna(False).sum())
-            promoted = int(group.get("promoted", pd.Series(False, index=group.index)).fillna(False).sum())
-            scores = []
-            if "production_metrics" in group:
-                for item in group["production_metrics"].dropna():
-                    if isinstance(item, dict) and item.get("f1") is not None:
-                        scores.append(float(item["f1"]))
-            summaries.append({"Policy": policy, "Weeks": len(group), "Failed runs": int((group.get("status", pd.Series(index=group.index, dtype=str)) == "failed").sum()), "Retraining attempts": attempts, "Promotions": promoted, "Mean weekly F1": sum(scores) / len(scores) if scores else None, "Modeled cost units": attempts * 10 + promoted * 2})
-        summary = pd.DataFrame(summaries)
-        st.dataframe(summary, use_container_width=True, hide_index=True)
-        if "Mean weekly F1" in summary and summary["Mean weekly F1"].notna().any():
-            st.plotly_chart(px.bar(summary, x="Policy", y="Mean weekly F1", color_discrete_sequence=[SAGE], title="Mean weekly F1 by policy"), use_container_width=True)
-        st.download_button("Download policy results", json.dumps(st.session_state["policy_results"], indent=2, default=str), "driftguard_policy_results.json")
-    else:
-        st.markdown('<div class="soft-card"><h3>Policy study ready</h3><div class="small-label">Run the four-policy comparison to generate a fresh side-by-side evaluation across all eight weeks.</div></div>', unsafe_allow_html=True)
 
-# ---------- Registry and logs ----------
-elif page == "Model registry & logs":
-    page_header("MODEL LIFECYCLE", "Model registry & logs", "Review registered model versions, run history, and workflow diagnostics.")
-    c1, c2 = st.columns([1, 1])
-    with c1:
-        st.markdown("### Registry")
-        st.json(load_registry(), expanded=2)
-    with c2:
-        st.markdown("### Run history")
-        if RUNS.exists():
-            run_text = RUNS.read_text()
-            try:
-                run_df = pd.DataFrame(json.loads(run_text))
-                st.dataframe(run_df, use_container_width=True, hide_index=True)
-            except Exception:
-                st.code(run_text[-10000:])
-            st.download_button("Download run history", run_text, "run_history.json")
-        else:
-            st.info("No run history has been recorded yet.")
-    log = ART / "logs" / "workflow.log"
-    if log.exists():
-        st.markdown("### Workflow log")
-        st.code(log.read_text()[-12000:], language="text")
+@app.get("/dashboard-data", include_in_schema=False)
+def dashboard_data():
+    """Return registry and recorded workflow summaries for dashboard widgets."""
+    root = Path(__file__).resolve().parents[1]
+    registry_path = root / "artifacts" / "registry.json"
+    runs_path = root / "artifacts" / "run_history.json"
+    registry = {}
+    runs = []
+    try:
+        if registry_path.exists():
+            registry = json.loads(registry_path.read_text(encoding="utf-8"))
+        if runs_path.exists():
+            runs = json.loads(runs_path.read_text(encoding="utf-8"))
+    except Exception:
+        # Keep the live prediction API available even if optional dashboard
+        # summaries cannot be read.
+        pass
+    models = registry.get("models", [])
+    production_version = registry.get("production_version")
+    production = next((m for m in models if m.get("version") == production_version), {})
+    metrics = production.get("metrics", {})
+    return {
+        "production_version": production_version or "Unavailable",
+        "registered_models": len(models),
+        "weekly_runs": len(runs),
+        "promotions": sum(bool(r.get("promoted")) for r in runs),
+        "metrics": metrics,
+        "models": models,
+        "runs": [
+            {
+                "week": r.get("week", r.get("week_number", i + 1)),
+                "status": r.get("status", "recorded"),
+                "promoted": bool(r.get("promoted")),
+                "policy": r.get("policy", ""),
+            }
+            for i, r in enumerate(runs[-8:])
+        ],
+    }
+
+
+class Customer(BaseModel):
+    features: dict
+
+
+@app.get("/health")
+def health():
+    try:
+        _, entry = load_production_model()
+        return {
+            "status": "ok",
+            "model_version": entry["version"],
+        }
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+
+@app.post("/predict")
+def predict(customer: Customer):
+    try:
+        model, entry = load_production_model()
+        X = pd.DataFrame([customer.features])
+
+        # Reject missing features and preserve the trained feature order.
+        expected = entry["features"]
+        missing = set(expected) - set(X.columns)
+
+        if missing:
+            raise ValueError(f"Missing features: {sorted(missing)}")
+
+        X = X[expected]
+        probability = float(model.predict_proba(X)[0, 1])
+        prediction = int(probability >= 0.5)
+
+        return {
+            "prediction": prediction,
+            "churn_probability": round(probability, 6),
+            "model_version": entry["version"],
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
