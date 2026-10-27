@@ -1,179 +1,386 @@
-# DriftGuard: Drift-Triggered Retraining with an Orchestrated Serverless Endpoint
+# 🚀 DriftGuard — Drift-Triggered Retraining with an Orchestrated Serverless Endpoint
 
-**A reproducible MLOps coursework project for customer churn prediction, model monitoring, and drift-triggered retraining.**
+**A reproducible MLOps coursework project demonstrating customer churn prediction, data drift monitoring, policy-driven model retraining, model validation, and controlled production model promotion.**
 
-DriftGuard demonstrates how a machine learning system can monitor changing data, evaluate retraining policies, validate candidate models, and promote an approved model through a controlled workflow.
+[![Python](https://img.shields.io/badge/Python-3.x-blue.svg)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/API-FastAPI-009688.svg)](https://fastapi.tiangolo.com/)
+[![Deployment](https://img.shields.io/badge/Deployment-Render-purple.svg)](https://render.com/)
+[![Project](https://img.shields.io/badge/Project-MLOps-orange.svg)](https://github.com/manjiriapshinge25/drift-triggered-retraining)
 
-<p align="center">
-
-[**Live Dashboard**](https://drift-triggered-retraining.onrender.com/) · [**API Documentation**](https://drift-triggered-retraining.onrender.com/docs) · [**Health Check**](https://drift-triggered-retraining.onrender.com/health) · [**GitHub Repository**](https://github.com/manjiriapshinge25/drift-triggered-retraining)
-
-</p>
+**🌐 Live Demo:** [DriftGuard — MLOps Control Center](https://drift-triggered-retraining.onrender.com/docs)
 
 ---
 
-## Table of Contents
+## 📌 Table of Contents
 
-- [Project Overview](#project-overview)
-- [Live Demo](#live-demo)
-- [Problem Statement](#problem-statement)
-- [Key Features](#key-features)
-- [System Architecture](#system-architecture)
-- [Retraining Policies and Results](#retraining-policies-and-results)
-- [Model Lifecycle](#model-lifecycle)
-- [Technology Stack](#technology-stack)
-- [Repository Structure](#repository-structure)
-- [Run Locally](#run-locally)
-- [Run the Retraining Workflow](#run-the-retraining-workflow)
-- [API Usage](#api-usage)
-- [Testing](#testing)
-- [Evidence and Reproducibility](#evidence-and-reproducibility)
-- [Deployment Notes and Limitations](#deployment-notes-and-limitations)
-- [Future Improvements](#future-improvements)
-- [AI-Use Disclosure](#ai-use-disclosure)
+1. [Project Overview](#-project-overview)
+2. [Problem Statement](#-problem-statement)
+3. [Objectives](#-objectives)
+4. [Key Features](#-key-features)
+5. [System Architecture](#-system-architecture)
+6. [Project Workflow](#-project-workflow)
+7. [Data and Experimental Setup](#-data-and-experimental-setup)
+8. [Drift Detection](#-drift-detection)
+9. [Retraining Policies](#-retraining-policies)
+10. [Experimental Results](#-experimental-results)
+11. [Model Registry and Promotion](#-model-registry-and-promotion)
+12. [Fault Handling and Safety](#-fault-handling-and-safety)
+13. [Technology Stack](#-technology-stack)
+14. [Repository Structure](#-repository-structure)
+15. [Installation and Setup](#-installation-and-setup)
+16. [Running the API](#-running-the-api)
+17. [Running the Retraining Workflow](#-running-the-retraining-workflow)
+18. [Testing](#-testing)
+19. [Evidence and Reproducibility](#-evidence-and-reproducibility)
+20. [Deployment Architecture](#-deployment-architecture)
+21. [Limitations](#-limitations)
+22. [Future Improvements](#-future-improvements)
+23. [AI-Use Disclosure](#-ai-use-disclosure)
 
-## Project Overview
+---
 
-DriftGuard explores a practical MLOps problem: a model that performs well on historical data may become less reliable when customer behaviour and input distributions change.
+## 📖 Project Overview
 
-The project uses eight simulated weekly datasets to investigate data drift, retraining decisions, candidate model validation, model promotion, and operational failure handling.
+Machine learning models are often trained on historical data and deployed to make predictions on new data. Over time, however, customer behaviour, market conditions, and input data distributions may change. This phenomenon is known as **data drift**.
 
-The system combines a reproducible local orchestration workflow with a hosted FastAPI inference endpoint.
+When drift occurs, a model that previously performed well may become less suitable for the incoming data. Retraining can help, but retraining too frequently increases computational and operational costs. Retraining too infrequently may allow model quality to deteriorate.
 
-**Project objectives:**
+**DriftGuard** explores this trade-off through a reproducible MLOps workflow for customer churn prediction.
 
-- Establish a reproducible baseline model and record its metrics.
-- Detect changes in incoming data using Population Stability Index (PSI).
-- Compare scheduled and drift-triggered retraining policies.
-- Validate candidate models before promoting them to production.
-- Prevent future-week data from influencing earlier retraining decisions.
-- Record model versions, experiment results, and workflow events.
-- Expose customer churn predictions through an HTTP API and web interface.
+The project uses eight simulated weekly datasets to compare retraining strategies. It includes drift monitoring, candidate training, validation gates, model promotion, registry updates, workflow history, and failure-handling scenarios.
 
-## Live Demo
+The project combines two related components:
 
-| Component | Link |
-|---|---|
-| Live DriftGuard application | https://drift-triggered-retraining.onrender.com/ |
-| FastAPI interactive documentation | https://drift-triggered-retraining.onrender.com/docs |
-| Health endpoint | https://drift-triggered-retraining.onrender.com/health |
-| GitHub source code | https://github.com/manjiriapshinge25/drift-triggered-retraining |
+- **Inference service:** A FastAPI application hosted on Render that exposes customer churn prediction functionality.
+- **Experiment orchestration:** A reproducible workflow for comparing retraining policies and recording model lifecycle decisions.
 
-The hosted application provides the customer churn prediction interface. The API documentation can be used to inspect and test the available endpoints.
+The hosted inference API and the simulated retraining experiment are separate components. The live API does not, by itself, imply that continuous retraining is running in the cloud.
 
-**Deployment note:** The Render deployment hosts the inference application. The eight-week experiment and retraining policy comparisons are reproducible project workflows; they should not be interpreted as continuous cloud retraining unless separately deployed and verified.
+## 🎯 Problem Statement
 
-## Problem Statement
+A deployed model can gradually become less effective as the distribution of real-world inputs changes.
 
-Machine learning models can experience **data drift** when the distribution of incoming data changes over time. Such changes may reduce prediction quality and make a previously reliable model less useful.
+A practical MLOps system must decide:
 
-Retraining too frequently can waste computational resources, while retraining too rarely can allow model performance to deteriorate.
+- When should a model be retrained?
+- How much drift is enough to trigger retraining?
+- How should a newly trained candidate be validated?
+- What happens if a candidate performs poorly?
+- How can future data leakage be prevented?
+- How can model versions and decisions be reproduced?
+- How can prediction quality be balanced against retraining cost?
 
-DriftGuard investigates the trade-off between prediction quality and retraining cost by comparing multiple policies on simulated weekly data.
+DriftGuard investigates these questions by evaluating multiple retraining policies on simulated weekly customer churn data.
 
-## Key Features
+## 🎯 Objectives
 
-- **Baseline model:** Reproducible training with a fixed random seed and recorded validation metrics.
-- **Drift monitoring:** PSI-based monitoring with configurable thresholds.
-- **Multiple retraining policies:** Never, weekly, low-drift-triggered, and high-drift-triggered retraining.
-- **Candidate validation:** Candidate models are evaluated before production promotion.
-- **Controlled model promotion:** Rejected candidates do not replace the current production model.
-- **Temporal data safeguards:** Candidate training uses eligible historical data rather than future-week data.
-- **Workflow history:** Model registry and run-history artifacts record experiment decisions.
-- **Fault injection:** Demonstrations cover missing-column validation, candidate rejection, and transient ingestion failures.
-- **REST API:** FastAPI endpoints expose health information and churn predictions.
-- **Reproducible evidence:** Reports and CSV/JSON artifacts support inspection of the experiment results.
+The primary objectives are:
 
-## System Architecture
+1. Build a reproducible baseline machine learning pipeline.
+2. Record baseline validation metrics and model metadata.
+3. Monitor weekly datasets for distribution changes using PSI.
+4. Compare scheduled and drift-triggered retraining policies.
+5. Train candidate models using eligible historical data.
+6. Validate candidates before changing the production model.
+7. Preserve the existing production model when a candidate is rejected.
+8. Record model versions, decisions, and experiment history.
+9. Test failure scenarios such as invalid input data and transient ingestion errors.
+10. Provide a REST API for customer churn predictions.
+11. Report all tested policies, including their performance and illustrative costs.
+
+## ✨ Key Features
+
+### 1. Reproducible baseline model
+
+The baseline pipeline uses a fixed random seed and records validation metrics, model metadata, and registry information.
+
+### 2. Drift monitoring
+
+The workflow calculates PSI to compare incoming feature distributions with a reference distribution.
+
+### 3. Policy-driven retraining
+
+The orchestrator supports four policies: never retrain, weekly retraining, low-drift-triggered retraining, and high-drift-triggered retraining.
+
+### 4. Candidate model validation
+
+A candidate is evaluated before promotion. Training a candidate does not automatically make it the production model.
+
+### 5. Controlled model promotion
+
+The production model is updated through the defined workflow and registry mechanism rather than by manually overwriting the active model.
+
+### 6. Temporal data safeguards
+
+The workflow excludes future-week information from earlier training and promotion decisions.
+
+### 7. Experiment tracking
+
+The project records run history, registry state, policy comparisons, and supporting reports.
+
+### 8. Fault-injection scenarios
+
+The workflow includes scenarios for missing-column validation, candidate rejection, and transient ingestion failure.
+
+### 9. REST inference API
+
+FastAPI provides endpoints for checking model health and generating customer churn predictions.
+
+### 10. Deployment demonstration
+
+The inference service is hosted on Render, while the experiment orchestration remains a separate workflow unless independently deployed.
+
+---
+
+## 🏗️ System Architecture
 
 ```mermaid
 flowchart TD
-    A[Simulated Weekly Datasets] --> B[Data Validation]
-    B --> C[Drift Monitoring with PSI]
-    C --> D{Retraining Policy}
-    D -->|No retraining| E[Keep Production Model]
-    D -->|Retraining triggered| F[Train Candidate Model]
-    F --> G[Candidate Validation]
-    G -->|Accepted| H[Promote Candidate]
-    G -->|Rejected| E
-    H --> I[Update Model Registry]
-    E --> I
-    I --> J[Run History and Reports]
-    I --> K[FastAPI Inference Endpoint]
-    K --> L[Customer Churn Dashboard]
+    A[Simulated Weekly Data] --> B[Data Validation]
+    B --> C[Reference Distribution]
+    C --> D[PSI Drift Monitoring]
+    D --> E{Retraining Policy}
+    E -->|No Trigger| F[Keep Production Model]
+    E -->|Trigger| G[Train Candidate Model]
+    G --> H[Candidate Validation]
+    H -->|Accepted| I[Controlled Promotion]
+    H -->|Rejected| F
+    I --> J[Update Model Registry]
+    F --> J
+    J --> K[Run History and Reports]
+    J --> L[Inference Application]
+    L --> M[FastAPI Endpoints]
+    M --> N[Customer Churn Prediction]
 ```
 
-The diagram describes the overall project workflow. The hosted inference endpoint and the local experiment orchestrator are separate deployment components.
+The architecture separates the model lifecycle experiment from the deployed prediction service. The registry and workflow artifacts provide evidence of experiment decisions, while the hosted API serves inference requests.
 
-## Retraining Policies and Results
+### Main components
 
-The experiment compares four retraining strategies across eight simulated weeks.
+| Component | Responsibility |
+|---|---|
+| Weekly data inputs | Represent changes in customer data over time |
+| Data validation | Check required fields and input structure |
+| Drift monitor | Compare feature distributions using PSI |
+| Policy engine | Decide whether retraining should be attempted |
+| Candidate trainer | Train a replacement model when triggered |
+| Validation gate | Decide whether a candidate is eligible for promotion |
+| Model registry | Track model versions and production selection |
+| Run history | Record workflow outcomes |
+| FastAPI service | Expose inference and health endpoints |
+
+## 🔄 Project Workflow
+
+The workflow follows these stages:
+
+1. **Initialize:** Prepare the baseline model, registry, and experiment artifacts.
+2. **Read weekly data:** Process each simulated week in chronological order.
+3. **Validate input:** Check the input structure before continuing.
+4. **Measure drift:** Calculate PSI relative to the reference distribution.
+5. **Evaluate policy:** Decide whether the configured policy triggers retraining.
+6. **Train candidate:** Use eligible historical data to train a candidate model.
+7. **Validate candidate:** Apply the configured acceptance criteria.
+8. **Promote or reject:** Promote an accepted candidate through the workflow or retain the existing production model.
+9. **Record results:** Update registry information and run history.
+10. **Report metrics:** Produce policy comparisons and retrospective performance summaries.
+
+This sequence makes retraining decisions traceable and helps separate model training from production model promotion.
+
+## 📊 Data and Experimental Setup
+
+The project uses **eight simulated weekly datasets** to investigate model behaviour under different data conditions.
+
+The experiment compares policies using recorded metrics such as:
+
+- Retraining attempts.
+- Successful model promotions.
+- Mean F1 score.
+- Illustrative retraining cost.
+- Weekly drift and workflow decisions.
+
+The weekly experiment is a controlled demonstration rather than a claim of continuous production monitoring.
+
+### Temporal validation
+
+For each week, candidate training uses the reference data and labelled weeks strictly before the current week.
+
+Current-week labels are reserved for retrospective performance reporting and are not used to train or approve that week's candidate. Future-week data must not influence decisions made for earlier weeks.
+
+This separation is important because using information from the future would make the evaluation unrealistic and could inflate reported performance.
+
+## 📉 Drift Detection
+
+### Population Stability Index (PSI)
+
+Population Stability Index measures changes in a feature's distribution between a reference dataset and a comparison dataset.
+
+A commonly used formulation is:
+
+\[
+PSI = \sum_{i=1}^{n}(A_i-E_i)\ln\left(\frac{A_i}{E_i}\right)
+\]
+
+Where:
+
+- \(A_i\) is the proportion of observations in bin \(i\) in the comparison dataset.
+- \(E_i\) is the proportion of observations in bin \(i\) in the reference dataset.
+- \(n\) is the number of bins.
+
+Small PSI values indicate that the distributions are relatively similar, while larger values indicate greater distributional change.
+
+### Thresholds used in the experiment
+
+| Policy | Drift trigger |
+|---|---|
+| Never retrain | No drift-triggered retraining |
+| Weekly | Scheduled retraining |
+| Low drift | PSI ≥ 0.10 |
+| High drift | PSI ≥ 0.25 |
+
+These thresholds are experiment settings, not universal rules. PSI measures distribution changes; it does not independently establish that predictive performance has declined.
+
+---
+
+## 🔁 Retraining Policies
+
+Four policies are evaluated using the same general experimental framework.
+
+### Policy 1: Never retrain
+
+The production model remains unchanged throughout the experiment.
+
+**Purpose:** Establish a reference point for understanding what happens when retraining costs are avoided.
+
+**Trade-off:** The model may become less suitable as incoming data changes.
+
+### Policy 2: Weekly retraining
+
+The workflow attempts retraining every simulated week.
+
+**Purpose:** Evaluate a scheduled retraining strategy.
+
+**Trade-off:** Frequent attempts may increase costs, and not every candidate necessarily passes validation.
+
+### Policy 3: Low-drift-triggered retraining
+
+Retraining is triggered when PSI reaches or exceeds 0.10.
+
+**Purpose:** Respond earlier to distributional changes.
+
+**Trade-off:** More frequent triggers may increase operational costs.
+
+### Policy 4: High-drift-triggered retraining
+
+Retraining is triggered when PSI reaches or exceeds 0.25.
+
+**Purpose:** Reduce retraining attempts by requiring a larger distributional change.
+
+**Trade-off:** Smaller changes may not trigger retraining even when they could be operationally relevant.
+
+## 📈 Experimental Results
+
+The recorded policy comparison reports the following results:
 
 | Policy | Retraining Attempts | Promotions | Mean F1 Score | Illustrative Cost |
 |---|---:|---:|---:|---:|
 | Never retrain | 0 | 0 | 0.383 | 0 |
 | Weekly retraining | 8 | 5 | 0.401 | 90 |
-| Low drift threshold (PSI ≥ 0.10) | 5 | 5 | 0.402 | 60 |
-| High drift threshold (PSI ≥ 0.25) | 4 | 4 | 0.401 | 48 |
+| Low drift (PSI ≥ 0.10) | 5 | 5 | 0.402 | 60 |
+| High drift (PSI ≥ 0.25) | 4 | 4 | 0.401 | 48 |
 
-*Values are from the project's recorded policy comparison artifacts. Re-run the workflow to reproduce them.*
+*Source: recorded project policy comparison artifacts. Re-run the workflow to reproduce the results.*
 
 ### Cost assumptions
 
 The experiment uses illustrative cost units:
 
-- 10 units per retraining attempt.
-- 2 additional units per successful promotion.
+- **10 units** for each retraining attempt.
+- **2 additional units** for each successful promotion.
 
-These values are experimental assumptions, not actual cloud billing amounts.
+These are abstract experiment costs, not actual cloud-provider billing figures.
 
-### Interpretation
+### Interpretation of results
 
-- The **never-retrain policy** has no retraining cost but records the lowest mean F1 score in this experiment.
-- The **weekly policy** retrains most frequently and records a mean F1 score of 0.401.
-- The **low-drift policy** records the highest mean F1 score in this experiment, at 0.402.
-- The **high-drift policy** has the lowest non-zero illustrative cost among the tested policies, at 48 units, with a mean F1 score of 0.401.
+**Never retrain:** This policy has zero illustrative retraining cost but the lowest mean F1 score in the recorded experiment.
 
-The high-drift policy reduces illustrative cost by 20% compared with the low-drift policy, while the recorded mean F1 scores differ by only 0.001. These findings apply to the simulated experiment and do not establish that one policy is universally optimal.
+**Weekly retraining:** This policy makes eight attempts and records five successful promotions. Its mean F1 score is 0.401, with an illustrative cost of 90 units.
 
-## Model Lifecycle
+**Low-drift policy:** This policy makes five attempts and records five promotions. It achieves the highest recorded mean F1 score of 0.402, at an illustrative cost of 60 units.
 
-DriftGuard follows a controlled model lifecycle:
+**High-drift policy:** This policy makes four attempts and records four promotions. Its mean F1 score is 0.401, with the lowest non-zero illustrative cost of 48 units.
 
-1. Train and register a baseline model.
-2. Evaluate each simulated weekly dataset.
-3. Calculate drift statistics and check the selected policy.
-4. Train a candidate only when the policy requires it.
-5. Validate the candidate using eligible historical data.
-6. Promote the candidate only if it satisfies the configured validation criteria.
-7. Preserve the existing production model if the candidate is rejected.
-8. Record decisions and results in the model registry and run history.
+The high-drift policy reduces illustrative cost by 20% compared with the low-drift policy:
 
-### Temporal data safeguards
+\[
+\frac{60-48}{60}\times100=20\%
+\]
 
-The workflow is designed to prevent future-week data leakage. Candidate training uses reference data and labelled weeks strictly before the current week. Current-week labels are reserved for retrospective performance reporting rather than candidate promotion or escalation decisions.
+The difference in their recorded mean F1 scores is only 0.001. For this simulated experiment, the high-drift policy therefore offers a lower-cost alternative with a very similar recorded mean F1 score.
 
-## Technology Stack
+These results should not be generalized beyond the experiment without additional datasets, repeated trials, and validation.
 
-| Technology | Purpose |
+## 🗂️ Model Registry and Promotion
+
+The model registry provides a record of the model versions used in the workflow.
+
+The promotion process is designed around a controlled sequence:
+
+1. Train a candidate model when the selected policy requires it.
+2. Evaluate the candidate using the configured validation criteria.
+3. Promote the candidate only when the acceptance criteria are satisfied.
+4. Update the production model selection through the defined workflow.
+5. Record the outcome in the registry and run history.
+
+If validation fails, the current production model should remain active. This prevents an unapproved candidate from automatically replacing the model serving predictions.
+
+The project includes registry artifacts and recorded model-version information to support inspection of these decisions.
+
+## 🛡️ Fault Handling and Safety
+
+The project includes fault scenarios intended to test the workflow's behaviour under failure conditions.
+
+| Scenario | Expected behaviour |
 |---|---|
-| Python | Core implementation and experiment orchestration |
-| pandas and NumPy | Data preparation and numerical operations |
+| Missing required input column | Reject invalid input during validation |
+| Candidate model rejected | Preserve the current production model |
+| Transient ingestion failure | Retry according to the configured retry behaviour |
+
+The recorded experiment also includes escalation information for selected weeks. Refer to the saved run history and fault-injection reports for the actual outcomes.
+
+### Safety principles
+
+- Validate input data before using it.
+- Keep training data temporally separated.
+- Do not promote candidates without validation.
+- Preserve the existing production version when a candidate fails.
+- Record decisions for later inspection.
+- Do not treat a deployment template as evidence of a completed cloud deployment.
+
+---
+
+## 🧰 Technology Stack
+
+| Technology | Role |
+|---|---|
+| Python | Main implementation language |
+| pandas | Data preparation and manipulation |
+| NumPy | Numerical computation |
 | scikit-learn | Machine learning pipeline and evaluation |
-| SciPy | Statistical analysis |
-| FastAPI | Inference API |
-| Uvicorn | ASGI application server |
-| pytest | Automated testing |
-| Matplotlib and Seaborn | Experiment visualisations |
+| SciPy | Statistical utilities |
+| FastAPI | REST API |
+| Uvicorn | ASGI server |
+| pytest | Automated tests |
+| Matplotlib | Visualisation |
+| Seaborn | Statistical visualisation |
 | Plotly | Interactive visualisations where used |
 | Render | Hosting the inference application |
-| AWS Lambda / AWS SAM scaffolding | Serverless deployment components included in the repository |
+| AWS Lambda / AWS SAM | Serverless deployment scaffolding included in the repository |
 
-The availability of a deployment template does not imply that the corresponding AWS deployment has been performed.
+The availability of AWS-related files does not establish that the project has been deployed to AWS.
 
-## Repository Structure
+## 📁 Repository Structure
 
-The main project components include:
+The main project files include the following components. Check the current repository for the exact set of files and generated artifacts.
 
 ```text
 drift-triggered-retraining/
@@ -196,167 +403,271 @@ drift-triggered-retraining/
 └── README.md
 ```
 
-The exact files in your checkout may differ. Refer to the repository for the current implementation and available artifacts.
+### Important files
 
-## Run Locally
+- `app.py` — root FastAPI application used for the hosted inference interface.
+- `orchestrator.py` — command-line entry point for the retraining experiment.
+- `src/core.py` — core workflow and model lifecycle logic.
+- `endpoint/` — additional endpoint and serverless deployment scaffolding.
+- `tests/` — automated tests.
+- `artifacts/` — registry, run history, and experiment evidence.
+- `requirements.txt` — Python dependencies.
 
-### 1. Clone the repository
+## 💻 Installation and Setup
+
+### Prerequisites
+
+Install:
+
+- Python 3.10 or a compatible version for the project's dependencies.
+- Git.
+- A terminal or Command Prompt.
+
+### Step 1: Clone the repository
 
 ```bash
 git clone https://github.com/manjiriapshinge25/drift-triggered-retraining.git
 cd drift-triggered-retraining
 ```
 
-### 2. Create a virtual environment
+### Step 2: Create a virtual environment
 
-On Windows:
+On Windows PowerShell:
 
 ```powershell
 python -m venv .venv
-.venv\Scripts\Activate.ps1
+.\.venv\Scripts\Activate.ps1
 ```
 
-If PowerShell blocks script activation, use Command Prompt and run:
+If PowerShell prevents script activation, use Command Prompt:
 
 ```bat
 .venv\Scripts\activate.bat
 ```
 
-### 3. Install dependencies
+### Step 3: Install dependencies
 
 ```bash
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-### 4. Start the inference API
+### Step 4: Verify the environment
 
-From the project root:
+```bash
+python --version
+pytest --version
+```
+
+If a command fails, check that the virtual environment is active and that dependency installation completed successfully.
+
+## 🌐 Running the API Locally
+
+From the project root, run:
 
 ```bash
 uvicorn app:app --host 127.0.0.1 --port 8000
 ```
 
-Open the following URLs:
+Open the local API documentation at:
 
-- Application: http://127.0.0.1:8000/
-- API documentation: http://127.0.0.1:8000/docs
-- Health check: http://127.0.0.1:8000/health
+```text
+http://127.0.0.1:8000/docs
+```
 
-Use the actual entry point and instructions from the repository if the local version differs from the deployed application.
+The local health endpoint is:
 
-## Run the Retraining Workflow
+```text
+http://127.0.0.1:8000/health
+```
 
-The project provides a command-line orchestrator for running the simulated experiment.
+The root endpoint serves the application interface if configured in the current version.
 
-Examples:
+### API endpoints
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/health` | Check application or model health |
+| POST | `/predict` | Generate a customer churn prediction |
+| GET | `/docs` | Explore and test API endpoints through Swagger UI |
+
+The `/docs` route is provided by FastAPI's interactive documentation. The deployed application's schema is the source of truth for request fields, data types, and required values.
+
+### Testing a prediction
+
+1. Open the live demo or the local `/docs` page.
+2. Expand the `POST /predict` endpoint.
+3. Select **Try it out**.
+4. Enter the JSON payload matching the endpoint's schema.
+5. Execute the request.
+6. Inspect the response and returned model information.
+
+Use the exact request schema displayed by the application rather than assuming that example fields are sufficient.
+
+## ⚙️ Running the Retraining Workflow
+
+The project includes a command-line orchestrator with support for different policies.
+
+Check the available options first:
 
 ```bash
-python orchestrator.py --reset --policy drift_high
+python orchestrator.py --help
+```
+
+Example commands:
+
+```bash
 python orchestrator.py --reset --policy never
 python orchestrator.py --reset --policy weekly
 python orchestrator.py --reset --policy drift_low
+python orchestrator.py --reset --policy drift_high
 ```
 
-These commands demonstrate the available policies. Check `python orchestrator.py --help` for supported arguments and options before running them.
+The exact supported flags and defaults are defined by the current version of `orchestrator.py`.
 
-**Important:** Resetting the workflow may regenerate or overwrite experiment artifacts. Back up any results you need to preserve before using `--reset`.
+**Important:** The `--reset` option may regenerate or overwrite experiment state. Back up any artifacts you need to preserve before running a reset.
 
-The notebook-based workflow can also be used to inspect data preparation, model training, and experiment outputs where the relevant notebook and input data are present.
+### Fault-injection examples
 
-## API Usage
+The orchestrator supports additional fault-injection options in the project implementation. Consult `python orchestrator.py --help` for the exact option names and valid values.
 
-The live API documentation is available at:
+The intended scenarios include:
 
-https://drift-triggered-retraining.onrender.com/docs
+- Missing-column validation.
+- Candidate rejection.
+- Transient ingestion failure.
 
-### Health check
+Use the recorded reports and run history to inspect the resulting workflow decisions.
+
+## 🧪 Testing
+
+Run the automated test suite from the project root:
 
 ```bash
-curl https://drift-triggered-retraining.onrender.com/health
+python -m pytest -q
 ```
 
-### Prediction endpoint
+The test suite includes safety-related checks for the implemented workflow.
 
-The `/predict` endpoint accepts a JSON request containing the customer features expected by the deployed application.
+Tests should be run against the current checkout before reporting a passing status. A previous test result does not guarantee that later code changes remain correct.
 
-Example request structure:
+### Additional verification
 
-```json
-{
-  "Tenure_Months": 12,
-  "Contract_Type": "Month-to-month",
-  "Internet_Service": "Fiber optic",
-  "Monthly_Charges": 75.0
-}
-```
+For a complete project review, verify:
 
-This is an illustrative partial payload. The complete request must include all fields required by the deployed endpoint. Refer to `/docs` for the authoritative schema and accepted values.
+- The API starts successfully.
+- The health endpoint responds.
+- The prediction endpoint accepts valid input and rejects invalid input appropriately.
+- Rejected candidates do not replace the production model.
+- The workflow does not use future-week data in earlier decisions.
+- Each retraining policy produces the expected experiment artifacts.
+- Model registry and run-history records agree with the recorded results.
+- No secrets or credentials are committed to the repository.
 
-The response contains the prediction information provided by the application, including the churn prediction and any associated probability or model-version information returned by the endpoint.
+## 📚 Evidence and Reproducibility
 
-## Testing
-
-Run the test suite from the project root:
-
-```bash
-pytest -q
-```
-
-The tests cover the safety and validation behaviour implemented in the repository. Test results should be verified against the current checkout before being reported as passing.
-
-The project also includes fault-injection scenarios for:
-
-- Missing input columns.
-- Candidate model rejection.
-- Transient ingestion failures and retry behaviour.
-
-## Evidence and Reproducibility
-
-Inspect the saved artifacts to understand and reproduce the experiment.
+The repository contains artifacts intended to support the reported experiment results.
 
 | Artifact | Purpose |
 |---|---|
-| `artifacts/registry.json` | Model registry and version information |
+| `artifacts/registry.json` | Registry state and model-version information |
 | `artifacts/run_history.json` | Recorded workflow history |
-| `artifacts/reports/policy_comparison.csv` | Policy comparison metrics and costs |
-| `artifacts/reports/policy_timeline.png` | Retraining policy timeline visualisation |
-| `artifacts/reports/` | Additional experiment reports and evidence, where present |
+| `artifacts/reports/` | Policy results, visualisations, and supporting evidence where present |
+| Policy comparison CSV | Comparison of retraining attempts, promotions, metrics, and costs |
+| Timeline visualisation | Representation of policy decisions across the simulated weeks |
+| Fault-injection reports | Evidence of selected failure-handling scenarios |
 
-The exact artifact filenames should be checked against the current repository. Reported metrics should be supported by saved outputs or reproducible execution.
+Exact filenames can vary by the current repository version. Inspect the actual files before referencing them in a submission.
 
-## Deployment Notes and Limitations
+### Reproducibility principles
 
-- The live Render service hosts the inference application.
-- Render's free instance may sleep after inactivity, which can introduce a cold-start delay.
-- The simulated eight-week experiment is not the same as continuous live production monitoring.
-- The repository includes AWS Lambda/SAM deployment scaffolding; a real AWS deployment requires the appropriate account, configuration, permissions, and verification.
-- Local model-load or warm-cache timing measurements must not be presented as cloud latency benchmarks.
-- PSI is a drift indicator; detected input drift does not automatically prove a reduction in prediction quality.
-- The policy results depend on the simulated data, validation rules, and illustrative cost assumptions.
+- Keep the random seed fixed where configured.
+- Preserve the experiment configuration.
+- Retain the original policy comparison artifacts.
+- Re-run tests after implementation changes.
+- Report measured values rather than estimates.
+- Clearly distinguish local experiments from cloud measurements.
+- Report all tested policies rather than selecting only the best-looking result.
 
-## Future Improvements
+## ☁️ Deployment Architecture
 
-Potential extensions include:
+The project separates the hosted inference service from the local experiment workflow.
 
-- Add scheduled monitoring for a continuously updated production data stream.
-- Store monitoring metrics and model versions in a persistent database.
-- Add dashboards for drift, model performance, and retraining events.
-- Add alerts when drift or performance thresholds are exceeded.
-- Evaluate calibration, precision, recall, and business impact alongside F1.
-- Deploy and benchmark the orchestration workflow in a verified serverless environment.
-- Add automated CI checks for tests, code quality, and data leakage.
+### Render inference service
 
-## AI-Use Disclosure
+The root FastAPI application is hosted on Render and exposes the inference interface and API endpoints.
 
-OpenAI ChatGPT was used as an AI-assisted development tool to help plan, scaffold, debug, explain, and document parts of this project.
+The free service may spin down after inactivity. This can result in a delay when the service receives a request after being idle.
 
-The student team is responsible for reviewing the generated suggestions, understanding the implementation, verifying the experiment outputs, and accurately describing any changes made after AI assistance. This disclosure should be updated to reflect the specific code reviewed, tests executed, and modifications actually completed by the team.
+### Serverless scaffolding
 
-AI-generated suggestions are not experimental evidence by themselves. Metrics, deployment claims, and test results should be supported by the repository artifacts or direct verification.
+The repository includes AWS Lambda/SAM-related deployment files. These provide scaffolding for a possible serverless deployment, but an actual AWS deployment requires appropriate configuration, permissions, deployment steps, and verification.
+
+### What is and is not demonstrated
+
+| Capability | Project status |
+|---|---|
+| Hosted FastAPI inference service | Deployed on Render |
+| Interactive API documentation | Available through the hosted FastAPI application |
+| Simulated weekly retraining experiment | Included in the project workflow |
+| Retraining policy comparison | Supported by recorded experiment artifacts |
+| Continuous cloud retraining | Not established by the Render inference deployment alone |
+| Verified AWS Lambda deployment | Requires separate deployment evidence |
+| Cloud cold-start/warm-start benchmarks | Must be measured on the actual cloud deployment |
+
+## ⚠️ Limitations
+
+1. **Simulated data:** The eight-week experiment does not establish performance on a continuously changing real-world production dataset.
+2. **Illustrative costs:** Retraining costs are abstract units, not actual cloud billing.
+3. **PSI limitations:** Distribution drift does not necessarily mean prediction quality has declined.
+4. **Limited experiment scope:** Results depend on the selected datasets, model, thresholds, and validation criteria.
+5. **Separate inference and orchestration:** Hosting the inference API does not automatically schedule retraining.
+6. **Cloud deployment scope:** AWS deployment scaffolding is not equivalent to a deployed and tested AWS workflow.
+7. **Generalisation:** The recorded policy results should not be assumed to apply to other datasets or production systems without additional experiments.
+
+## 🚀 Future Improvements
+
+Possible extensions include:
+
+- Integrate continuous data ingestion and scheduled monitoring.
+- Add persistent storage for model versions and monitoring events.
+- Create dashboards for PSI, prediction quality, and retraining history.
+- Add alerts for drift, degraded performance, and failed training runs.
+- Evaluate precision, recall, ROC-AUC, calibration, and business impact alongside F1.
+- Test multiple random seeds and additional datasets.
+- Deploy the orchestration workflow to a verified cloud environment.
+- Measure cloud latency, cold starts, and warm requests independently.
+- Add CI/CD automation for tests, code quality, and model validation.
+- Add model explainability and feature-level drift reports.
+- Document each team member's actual contributions and technical responsibilities.
+
+## 🤖 AI-Use Disclosure
+
+OpenAI ChatGPT was used as an AI-assisted development tool to help plan the project, scaffold and debug parts of the implementation, explain MLOps concepts, and improve documentation.
+
+The student team is responsible for reviewing the implementation, understanding the code, validating experiment results, running the tests, and accurately documenting changes made after AI assistance.
+
+The final disclosure should reflect the work actually performed by the team. AI-generated suggestions are not treated as experimental evidence unless supported by reproducible outputs or direct verification.
+
+## 👥 Team Contributions
+
+Add the names of the project members and their actual contributions here before submission.
+
+For example:
+
+- **Member 1:** Document the components personally implemented, tested, and reviewed.
+- **Member 2:** Document the components personally implemented, tested, and reviewed.
+
+Replace these examples with the team's real contributions. Every member should be able to explain the data flow, retraining policies, validation gate, registry, experiment results, and deployment limitations.
 
 ---
 
-**Project:** DriftGuard — Drift-Triggered Retraining with an Orchestrated Serverless Endpoint  
-**Repository:** [manjiriapshinge25/drift-triggered-retraining](https://github.com/manjiriapshinge25/drift-triggered-retraining)  
-**Live demo:** [drift-triggered-retraining.onrender.com](https://drift-triggered-retraining.onrender.com/)
+## 📌 Final Summary
+
+DriftGuard demonstrates a controlled approach to model retraining under data drift. By comparing four policies, validating candidate models, preserving the production model when validation fails, and recording experiment decisions, the project highlights the importance of reproducibility and safeguards in MLOps.
+
+The recorded experiment shows that the high-drift policy achieves a lower illustrative cost than the low-drift policy while maintaining a very similar mean F1 score. These results apply to the project's simulated setting and require further validation before being generalized to production systems.
+
+**Live Demo:** [DriftGuard — MLOps Control Center](https://drift-triggered-retraining.onrender.com/docs)
+
+**Repository:** [manjiriapshinge25/drift-triggered-retraining](https://github.com/manjiriapshinge25/drift-triggered-retraining)
